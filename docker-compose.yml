@@ -1,0 +1,59 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: my-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "PRANAV1@bpp"
+      MYSQL_DATABASE: blood
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3307:3306"                           # host:container (use 3307 to avoid host conflict)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appnet
+
+  backend:
+    build:
+      context: ./Blood
+      dockerfile: Dockerfile
+    image: my-backend:local
+    container_name: my-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/blood?useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: "root"
+      SPRING_DATASOURCE_PASSWORD: "PRANAV1@bpp"
+    ports:
+      - "5000:8089"
+    restart: unless-stopped
+    networks:
+      - appnet
+
+  frontend:
+    build:
+      context: ./bloodbank
+      dockerfile: Dockerfile
+    image: my-frontend:local
+    container_name: my-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - appnet
+
+volumes:
+  db_data:
+
+networks:
+  appnet:
+    driver: bridge
